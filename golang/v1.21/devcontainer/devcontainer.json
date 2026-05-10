@@ -1,0 +1,17 @@
+{
+  "name": "Go v1.21 Development",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [8080],
+  "postCreateCommand": "go mod download",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "remoteUser": "vscode"
+}

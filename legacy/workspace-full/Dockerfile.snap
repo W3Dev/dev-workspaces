@@ -1,0 +1,12 @@
+FROM gitpod/workspace-full-vnc
+LABEL org.opencontainers.image.source = "https://github.com/W3Dev/gitpod-workspaces"
+
+ENV container docker
+ENV PATH /snap/bin:$PATH
+ADD snap /usr/local/bin/snap
+RUN sudo apt-get update
+RUN sudo apt-get install -y snapd squashfuse fuse
+RUN sudo systemctl enable snapd
+STOPSIGNAL SIGRTMIN+3
+
+# Not Working

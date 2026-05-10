@@ -1,0 +1,48 @@
+{
+  "name": "Next.js v14.2 Development",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [3000, 3001],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js App",
+      "onAutoForward": "openPreview"
+    },
+    "3001": {
+      "label": "Next.js App (Alt)",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "formulahendry.auto-rename-tag",
+        "dsznajder.es7-react-js-snippets",
+        "christian-kohler.npm-intellisense",
+        "christian-kohler.path-intellisense",
+        "wix.vscode-import-cost",
+        "usernamehw.errorlens",
+        "yoavbls.pretty-ts-errors"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "emmet.includeLanguages": {
+          "javascript": "javascriptreact"
+        }
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "remoteUser": "node"
+}

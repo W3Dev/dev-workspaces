@@ -1,0 +1,105 @@
+name: Validate Dockerfiles
+
+on:
+  push:
+    paths:
+      - '**/Dockerfile*'
+      - '.github/workflows/validate-dockerfiles.yml'
+  pull_request:
+    paths:
+      - '**/Dockerfile*'
+      - '.github/workflows/validate-dockerfiles.yml'
+  workflow_dispatch:
+
+jobs:
+  find-dockerfiles:
+    name: Find all Dockerfiles
+    runs-on: ubuntu-latest
+    outputs:
+      dockerfiles: ${{ steps.find.outputs.dockerfiles }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find Dockerfiles
+        id: find
+        run: |
+          # Find all Dockerfiles excluding legacy directory
+          dockerfiles=$(find . -name "Dockerfile*" -not -path "./legacy/*" -not -path "./.git/*" | jq -R -s -c 'split("\n")[:-1]')
+          echo "dockerfiles=$dockerfiles" >> $GITHUB_OUTPUT
+          echo "Found Dockerfiles:"
+          echo "$dockerfiles" | jq -r '.[]'
+
+  validate:
+    name: Validate ${{ matrix.dockerfile }}
+    needs: find-dockerfiles
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dockerfile: ${{ fromJson(needs.find-dockerfiles.outputs.dockerfiles) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          config: .hadolint.yaml
+          no-fail: false
+
+      - name: Validate required labels
+        run: |
+          echo "Checking required labels in ${{ matrix.dockerfile }}"
+          
+          # Check for required OCI labels
+          if ! grep -q "LABEL org.opencontainers.image.source" "${{ matrix.dockerfile }}"; then
+            echo "ERROR: Missing required label: org.opencontainers.image.source"
+            exit 1
+          fi
+          
+          if ! grep -q "LABEL org.opencontainers.image.description" "${{ matrix.dockerfile }}"; then
+            echo "ERROR: Missing required label: org.opencontainers.image.description"
+            exit 1
+          fi
+          
+          if ! grep -q "LABEL org.opencontainers.image.version" "${{ matrix.dockerfile }}"; then
+            echo "ERROR: Missing required label: org.opencontainers.image.version"
+            exit 1
+          fi
+          
+          echo "✓ All required labels present"
+
+      - name: Check multi-platform compatibility
+        run: |
+          echo "Checking multi-platform compatibility markers in ${{ matrix.dockerfile }}"
+          
+          # Check for platform-specific user handling
+          if ! grep -q "gitpod\|vscode" "${{ matrix.dockerfile }}"; then
+            echo "WARNING: No platform-specific user handling found (gitpod/vscode)"
+          fi
+          
+          # Check for workspace directory
+          if ! grep -q "/workspace" "${{ matrix.dockerfile }}"; then
+            echo "WARNING: No /workspace directory setup found"
+          fi
+          
+          echo "✓ Multi-platform checks complete"
+
+  summary:
+    name: Validation Summary
+    needs: validate
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Dockerfile Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.validate.result }}" == "success" ]]; then
+            echo "✅ All Dockerfiles passed validation!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some Dockerfiles failed validation. Check the logs above." >> $GITHUB_STEP_SUMMARY
+          fi

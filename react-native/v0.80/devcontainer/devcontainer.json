@@ -1,0 +1,50 @@
+{
+  "name": "React Native v0.80 Development",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [8081, 19000, 19001],
+  "portsAttributes": {
+    "8081": {
+      "label": "Metro Bundler",
+      "onAutoForward": "notify"
+    },
+    "19000": {
+      "label": "Expo DevTools",
+      "onAutoForward": "openPreview"
+    },
+    "19001": {
+      "label": "Metro",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "msjsdiag.vscode-react-native",
+        "dsznajder.es7-react-js-snippets",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "orta.vscode-jest",
+        "flowtype.flow-for-vscode",
+        "christian-kohler.npm-intellisense",
+        "christian-kohler.path-intellisense",
+        "usernamehw.errorlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "react-native-tools.showUserTips": false,
+        "react-native.packager.port": 8081
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "remoteUser": "node"
+}

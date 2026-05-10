@@ -1,0 +1,18 @@
+{
+  "name": "Flutter v3.24 Development",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [9100, 9101],
+  "postCreateCommand": "flutter pub get",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dart-code.dart-code",
+        "dart-code.flutter"
+      ]
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "remoteUser": "vscode"
+}

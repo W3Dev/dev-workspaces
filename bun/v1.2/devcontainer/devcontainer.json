@@ -1,0 +1,54 @@
+{
+  "name": "Bun v1.2 Development",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [3000, 4000, 5173, 8080],
+  "portsAttributes": {
+    "3000": {
+      "label": "App",
+      "onAutoForward": "openPreview"
+    },
+    "4000": {
+      "label": "Alt App",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Vite",
+      "onAutoForward": "openPreview"
+    },
+    "8080": {
+      "label": "API/Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "bun install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "oven.bun-vscode",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "christian-kohler.npm-intellisense",
+        "christian-kohler.path-intellisense",
+        "usernamehw.errorlens",
+        "yoavbls.pretty-ts-errors",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "remoteUser": "vscode"
+}

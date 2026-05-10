@@ -1,0 +1,55 @@
+{
+  "name": "Deno v2.3 Development",
+  "dockerFile": "Dockerfile",
+  "forwardPorts": [8000, 8080, 3000, 4000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Deno Server",
+      "onAutoForward": "openPreview"
+    },
+    "8080": {
+      "label": "Alt Server",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "App",
+      "onAutoForward": "notify"
+    },
+    "4000": {
+      "label": "API",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "deno cache deps.ts 2>/dev/null || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "denoland.vscode-deno",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "christian-kohler.path-intellisense",
+        "usernamehw.errorlens",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "deno.enable": true,
+        "deno.lint": true,
+        "deno.unstable": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "denoland.vscode-deno",
+        "[typescript]": {
+          "editor.defaultFormatter": "denoland.vscode-deno"
+        },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "denoland.vscode-deno"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "remoteUser": "vscode"
+}

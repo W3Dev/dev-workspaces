@@ -1,0 +1,66 @@
+# Stack configuration for Dockerfile generation
+# This file defines the versions and configurations for each technology stack
+
+stacks:
+  nextjs:
+    versions: [v15, v14.2, v14.0]
+    base_image: node:20-slim
+    gitpod_base: gitpod/workspace-full:latest
+    needs_vnc: false
+    ports: [3000, 3001]
+    
+  flutter:
+    versions: [v3.32, v3.29, v3.24]
+    base_image: debian:bookworm-slim
+    gitpod_base: gitpod/workspace-full-vnc:latest
+    needs_vnc: true
+    ports: [9100, 9101]
+    
+  react-native:
+    versions: [v0.80, v0.79, v0.78]
+    base_image: node:20-slim
+    gitpod_base: gitpod/workspace-full-vnc:latest
+    needs_vnc: true
+    ports: [8081, 8082, 19000, 19001]
+    
+  python:
+    versions: [v3.13, v3.12, v3.11]
+    base_image: python:VERSION-slim
+    gitpod_base: gitpod/workspace-full:latest
+    needs_vnc: false
+    ports: [8000, 5000]
+    
+  golang:
+    versions: [v1.23, v1.22, v1.21]
+    base_image: golang:VERSION-alpine
+    gitpod_base: gitpod/workspace-full:latest
+    needs_vnc: false
+    ports: [8080]
+    
+  bun:
+    versions: [v1.2, v1.1, v1.0]
+    base_image: debian:bookworm-slim
+    gitpod_base: gitpod/workspace-full:latest
+    needs_vnc: false
+    ports: [3000, 4000, 5173, 8080]
+    
+  deno:
+    versions: [v2.3, v2.0, v1.46]
+    base_image: debian:bookworm-slim
+    gitpod_base: gitpod/workspace-full:latest
+    needs_vnc: false
+    ports: [8000, 8080, 3000, 4000]
+    
+  expo:
+    versions: [v53, v52, v51, v50]
+    base_image: node:20-slim
+    gitpod_base: gitpod/workspace-full:latest
+    needs_vnc: false
+    ports: [19000, 19001, 19002]
+    
+  android:
+    versions: [studio-latest, sdk-v34, sdk-v33]
+    base_image: ubuntu:22.04
+    gitpod_base: gitpod/workspace-full-vnc:latest
+    needs_vnc: true
+    ports: [5037, 5554, 5555]

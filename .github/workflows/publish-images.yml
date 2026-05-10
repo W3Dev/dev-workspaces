@@ -1,0 +1,210 @@
+name: Publish Docker Images
+
+on:
+  push:
+    tags:
+      - 'v*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: 'Stack to publish (e.g., flutter, python, all)'
+        required: true
+        default: 'all'
+      version:
+        description: 'Version to publish (e.g., v3.32, all)'
+        required: false
+        default: 'all'
+
+env:
+  # GitHub Container Registry
+  GHCR_REGISTRY: ghcr.io
+  GHCR_PREFIX: ${{ github.repository_owner }}/dev-workspaces
+  
+  # Docker Hub
+  DOCKER_PREFIX: w3dev/dev-workspaces
+  
+  # GitLab Container Registry
+  GITLAB_REGISTRY: registry.gitlab.com
+  GITLAB_PREFIX: w3dev/dev-workspaces
+  
+  # Quay.io
+  QUAY_REGISTRY: quay.io
+  QUAY_PREFIX: w3dev/dev-workspaces
+
+jobs:
+  find-images:
+    name: Find images to publish
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-images: ${{ steps.set-matrix.outputs.has-images }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find Dockerfiles to publish
+        id: set-matrix
+        run: |
+          # Determine which images to build based on trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            stack="${{ github.event.inputs.stack }}"
+            version="${{ github.event.inputs.version }}"
+            
+            if [[ "$stack" == "all" ]]; then
+              dockerfiles=$(find . -name "Dockerfile*" -not -path "./legacy/*" -not -path "./templates/*" -not -path "./.git/*")
+            else
+              if [[ "$version" == "all" ]]; then
+                dockerfiles=$(find "$stack" -name "Dockerfile*" 2>/dev/null || echo "")
+              else
+                dockerfiles=$(find "$stack/$version" -name "Dockerfile*" 2>/dev/null || echo "")
+              fi
+            fi
+          else
+            # For tags/releases, publish all images
+            dockerfiles=$(find . -name "Dockerfile*" -not -path "./legacy/*" -not -path "./templates/*" -not -path "./.git/*")
+          fi
+          
+          # Build matrix
+          matrix_json="[]"
+          if [[ ! -z "$dockerfiles" ]]; then
+            matrix_json=$(echo "$dockerfiles" | while read dockerfile; do
+              if [[ -f "$dockerfile" ]]; then
+                dir=$(dirname "$dockerfile")
+                stack=$(echo "$dir" | cut -d'/' -f2)
+                version=$(echo "$dir" | cut -d'/' -f3)
+                echo "{\"dockerfile\":\"$dockerfile\",\"stack\":\"$stack\",\"version\":\"$version\",\"context\":\"$dir\"}"
+              fi
+            done | jq -s '.')
+          fi
+          
+          echo "matrix=$matrix_json" >> $GITHUB_OUTPUT
+          echo "has-images=$([[ "$matrix_json" != "[]" ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          
+          echo "Publishing matrix:"
+          echo "$matrix_json" | jq '.'
+
+  publish:
+    name: Publish ${{ matrix.stack }}:${{ matrix.version }}
+    needs: find-images
+    if: needs.find-images.outputs.has-images == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.find-images.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Log in to GitLab Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GITLAB_REGISTRY }}
+          username: ${{ secrets.GITLAB_USERNAME }}
+          password: ${{ secrets.GITLAB_TOKEN }}
+
+      - name: Log in to Quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.QUAY_REGISTRY }}
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_PREFIX }}/${{ matrix.stack }}
+            ${{ env.DOCKER_PREFIX }}/${{ matrix.stack }}
+            ${{ env.GITLAB_REGISTRY }}/${{ env.GITLAB_PREFIX }}/${{ matrix.stack }}
+            ${{ env.QUAY_REGISTRY }}/${{ env.QUAY_PREFIX }}/${{ matrix.stack }}
+          tags: |
+            type=raw,value=${{ matrix.version }}
+            type=raw,value=${{ matrix.version }}-{{date 'YYYYMMDD'}}
+            type=raw,value=latest,enable=${{ matrix.version == 'latest' || endsWith(matrix.version, '-latest') }}
+            type=sha,prefix=${{ matrix.version }}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Create SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_PREFIX }}/${{ matrix.stack }}:${{ matrix.version }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.stack }}-${{ matrix.version }}.spdx.json
+
+      - name: Sign image with cosign
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          # Sign GitHub Container Registry image
+          cosign sign --yes ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_PREFIX }}/${{ matrix.stack }}:${{ matrix.version }}
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.stack }}-${{ matrix.version }}
+          path: sbom-${{ matrix.stack }}-${{ matrix.version }}.spdx.json
+
+  publish-summary:
+    name: Publish Summary
+    needs: publish
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Image Publishing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.publish.result }}" == "success" ]]; then
+            echo "✅ All images published successfully to:" >> $GITHUB_STEP_SUMMARY
+            echo "- GitHub Container Registry (ghcr.io)" >> $GITHUB_STEP_SUMMARY
+            echo "- Docker Hub" >> $GITHUB_STEP_SUMMARY
+            echo "- GitLab Container Registry" >> $GITHUB_STEP_SUMMARY
+            echo "- Quay.io" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some images failed to publish." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Images" >> $GITHUB_STEP_SUMMARY
+          echo "Check the individual job logs for specific image tags and digests." >> $GITHUB_STEP_SUMMARY

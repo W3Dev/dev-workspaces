@@ -1,0 +1,5 @@
+FROM gitpod/workspace-full-vnc:latest
+LABEL org.opencontainers.image.source = "https://github.com/W3Dev/gitpod-workspaces"
+
+RUN sudo apt-get update -y
+RUN DEBIAN_FRONTEND=noninteractive sudo apt install vlc -y

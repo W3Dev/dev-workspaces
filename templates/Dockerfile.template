@@ -1,0 +1,89 @@
+# syntax=docker/dockerfile:1
+# {STACK_NAME} {VERSION} Development Environment
+# Compatible with Gitpod, GitHub Codespaces (Devcontainers), and OpenAI Codex
+
+# Use appropriate base image based on platform requirements
+FROM {BASE_IMAGE}
+
+# Label for GitHub Container Registry and other registries
+LABEL org.opencontainers.image.source="https://github.com/W3Dev/dev-workspaces"
+LABEL org.opencontainers.image.description="{STACK_NAME} {VERSION} development environment for Gitpod, Devcontainers, and OpenAI Codex"
+LABEL org.opencontainers.image.version="{VERSION}"
+LABEL dev.containers.features="true"
+
+# Set environment variables
+ENV {STACK_ENV_VAR}={STACK_VERSION}
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Switch to root for system packages installation
+USER root
+
+# Update system and install common dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    wget \
+    git \
+    build-essential \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    sudo \
+    locales \
+    && rm -rf /var/lib/apt/lists/*
+
+# Generate locale
+RUN locale-gen en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+# Install {STACK_NAME} specific dependencies
+{STACK_SPECIFIC_INSTALLATION}
+
+# Create workspace directory
+RUN mkdir -p /workspace && \
+    chmod -R 777 /workspace
+
+# For Gitpod compatibility - create gitpod user if not exists
+RUN if ! id -u gitpod > /dev/null 2>&1; then \
+        useradd -l -u 33333 -G sudo -md /home/gitpod -s /bin/bash -p gitpod gitpod && \
+        sed -i.bkp -e 's/%sudo\s\+ALL=(ALL\(:ALL\)\?)\s\+ALL/%sudo ALL=NOPASSWD:ALL/g' /etc/sudoers; \
+    fi
+
+# For Devcontainers compatibility - create vscode user if not exists  
+RUN if ! id -u vscode > /dev/null 2>&1; then \
+        useradd -l -u 1000 -G sudo -md /home/vscode -s /bin/bash -p vscode vscode && \
+        echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers; \
+    fi
+
+# Install additional development tools
+{ADDITIONAL_TOOLS_INSTALLATION}
+
+# Platform-specific configurations
+# Gitpod
+COPY --chown=gitpod:gitpod .gitpod.yml /home/gitpod/.gitpod.yml 2>/dev/null || true
+
+# Devcontainers  
+RUN mkdir -p /usr/local/share/devcontainer-features
+
+# OpenAI Codex optimizations
+RUN mkdir -p /opt/codex && \
+    echo "# OpenAI Codex optimizations" > /opt/codex/config
+
+# Clean up
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Switch to non-root user (gitpod for Gitpod, vscode for Devcontainers)
+# The actual user will be determined at runtime by the platform
+USER ${USER:-gitpod}
+
+# Expose common development ports
+EXPOSE 3000 3001 4200 5000 5173 8000 8080 8081 9000
+
+# Default command
+CMD ["/bin/bash"]

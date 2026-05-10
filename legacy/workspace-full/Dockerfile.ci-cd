@@ -1,0 +1,11 @@
+FROM gitpod/workspace-full
+LABEL org.opencontainers.image.source = "https://github.com/W3Dev/gitpod-workspaces"
+
+RUN sudo apt-get update -y
+
+# Install Gitlab Runner
+RUN curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | sudo bash
+RUN sudo apt-get install gitlab-runner -y
+
+# Install act for running Github Actions locally
+RUN brew install act
